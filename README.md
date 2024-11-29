@@ -9,7 +9,7 @@ O objetivo desse projeto é parsear um arquivo CSV, salvar as transações no ba
 ### 1. Construir os Containers
 
 Execute o comando para construir os containers com o Docker Compose:
-
+```bash
 docker-compose build
 docker-compose up -d
 
