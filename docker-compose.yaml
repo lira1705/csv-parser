@@ -20,5 +20,10 @@ services:
       - '3000:3000'
     volumes:
       - .:/app
+    environment:
+      DATABASE_HOST: mysqlDB
+      DATABASE_USER: root
+      DATABASE_PASS: root
+      DATABASE_NAME: mysqlDB
 volumes:
   mysql-volume:
