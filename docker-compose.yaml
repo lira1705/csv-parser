@@ -1,0 +1,24 @@
+version: '3.8'
+services:
+  mysqlDB:
+    image: mysql:latest
+    container_name: transactions-service
+    restart: always
+    environment:
+      - MYSQL_DATABASE=mysqlDB
+      - MYSQL_ROOT_PASSWORD=root
+    ports:
+      - '3306:3306'
+    volumes:
+      - mysql-volume:/var/lib/mysql
+
+  app:
+    build: .
+    depends_on:
+      - mysqlDB
+    ports:
+      - '3000:3000'
+    volumes:
+      - .:/app
+volumes:
+  mysql-volume:

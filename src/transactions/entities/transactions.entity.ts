@@ -1,11 +1,4 @@
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  TableForeignKey,
-} from 'typeorm';
+import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { File } from './file.entity';
 
 @Entity('transactions')
@@ -24,6 +17,9 @@ export class Transactions {
 
   @Column()
   status: string;
+
+  @Column()
+  description: string;
 
   @ManyToOne((type) => File, (transaction) => transaction.id) file: File;
 }
