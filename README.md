@@ -12,15 +12,19 @@ Execute o comando para construir os containers com o Docker Compose:
 ```bash
 docker-compose build
 docker-compose up -d
+```
 
 ### 2. Gere o arquivo de transações
-
+```bash
 node transactionGenerator
+```
 
 ### 3. Faça uma requisição
 
+```bash
 curl --location 'http://localhost:3000/transactions/upload' \
 --form 'file_asset=@"caminho para o arquivo"'
+```
 
 ### Banco de dados
 
