@@ -54,8 +54,8 @@ export class TransactionStatusService {
     fileId: number,
   ): Promise<boolean> {
     const duplicate = await this.transactionsRepository.findOne(
-      from,
       to,
+      from,
       amountInCents,
       fileId,
     );
