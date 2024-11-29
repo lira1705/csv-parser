@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { TransactionsModule } from './transactions/transactions.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { File, Transactions } from './transactions/entities';
+import { FileManageModule } from './fileManage/fileManage.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { File, Transactions } from './transactions/entities';
       type: 'mysql',
       synchronize: true,
     }),
+    FileManageModule,
   ],
   controllers: [AppController],
   providers: [AppService],

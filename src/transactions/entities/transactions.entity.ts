@@ -18,7 +18,7 @@ export class Transactions {
   @Column()
   status: string;
 
-  @Column()
+  @Column({ nullable: true })
   description: string;
 
   @ManyToOne((type) => File, (transaction) => transaction.id) file: File;

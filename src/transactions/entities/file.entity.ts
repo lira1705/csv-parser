@@ -12,6 +12,6 @@ export class File {
   @Column('longblob')
   data: Buffer;
 
-  @OneToMany((type) => Transactions, (transaction) => transaction.file)
+  @OneToMany(() => Transactions, (transaction) => transaction.file)
   transactions: Transactions[];
 }

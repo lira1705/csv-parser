@@ -1,15 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { File, Transactions } from './entities';
+import { File } from './entities';
+import { TransactionsRepository } from './transactions.repository';
+import { TransactionStatusService } from './transactionStatus.service';
+import { TransactionSummaryService } from './transactionsSummary.service';
+import { FileManageService } from '../fileManage/fileManage.service';
 
 @Injectable()
 export class TransactionsService {
   constructor(
-    @InjectRepository(Transactions)
-    private transactionsRepository: Repository<Transactions>,
     @InjectRepository(File)
     private filesRepository: Repository<File>,
+    private readonly transactionsRepository: TransactionsRepository,
+    private readonly transactionStatusService: TransactionStatusService,
+    private readonly transactionsSummaryService: TransactionSummaryService,
+    private readonly fileManagerService: FileManageService,
   ) {}
 
   async saveTransactionFile(data: { filename: string; data: Buffer }) {
@@ -20,131 +26,64 @@ export class TransactionsService {
     return await this.filesRepository.save(file);
   }
 
-  async getFileSummary(fileId: number) {
-    const transactions = await this.transactionsRepository.find({
-      where: {
-        file: {
-          id: fileId,
-        },
-      },
-    });
-
-    return this.composeTransactionSummary(transactions);
-  }
-
-  private composeTransactionSummary(transactions: Transactions[]) {
-    const summary = {
-      approved: 0,
-      reproved: {
-        negative: 0,
-        duplicated: 0,
-      },
-      suspects: 0,
-    };
-
-    transactions.forEach((transaction) => {
-      if (transaction.status === 'approved') {
-        if (transaction.description === 'suspect') {
-          return summary.suspects++;
-        }
-        return summary.approved++;
-      }
-      if ((transaction.status = 'reproved')) {
-        if (transaction.description === 'duplicated') {
-          return summary.reproved.duplicated++;
-        }
-        if (transaction.description === 'negative') {
-          return summary.reproved.negative++;
-        }
-      }
-    });
-
-    return summary;
-  }
-
   async doTransaction(
     fileId: number,
     transaction: { from: string; to: string; amount: string },
   ) {
-    const transactionStatus = await this.defineTransactionStatus({
+    const transactionStatus = await this.transactionStatusService.defineStatus({
       fileId,
       from: transaction.from,
       to: transaction.to,
       amount: transaction.amount,
     });
 
-    const savedTransaction = this.transactionsRepository.create({
+    const savedTransaction = this.transactionsRepository.createTransaction({
       amount: Number(transaction.amount),
-      file: { id: fileId },
+      fileId: fileId,
       from: transaction.from,
       status: transactionStatus.status,
       description: transactionStatus.description,
       to: transaction.to,
     });
 
-    return await this.transactionsRepository.save(savedTransaction);
+    return await this.transactionsRepository.saveTransaction(savedTransaction);
   }
 
-  private async defineTransactionStatus(data: {
-    fileId: number;
-    from: string;
-    to: string;
-    amount: string;
-  }): Promise<{ description?: string; status: string }> {
-    const { from, to, amount } = data;
+  async processFile(file: Express.Multer.File) {
+    const fileBuffer = await this.fileManagerService.readFile(file.filename);
 
-    const amountInCents = Number(amount);
-
-    if (isNaN(amountInCents)) {
-      return { status: 'invalid', description: 'invalid amount' };
-    }
-    if (this.isTransactionSuspect(amountInCents)) {
-      return { status: 'approved', description: 'suspect' };
-    }
-
-    if (this.isTransactionNegative(amountInCents)) {
-      return { status: 'invalid', description: 'negative' };
-    }
-
-    const isTransactionDuplicated = await this.isTransactionDuplicated(
-      to,
-      from,
-      amountInCents,
-      data.fileId,
-    );
-
-    if (isTransactionDuplicated) {
-      return { status: 'invalid', description: 'duplicated' };
-    }
-
-    return { status: 'valid' };
-  }
-
-  private isTransactionSuspect(amount: number) {
-    return amount > 5000000;
-  }
-
-  private isTransactionNegative(amount: number) {
-    return amount < 0;
-  }
-
-  private async isTransactionDuplicated(
-    to: string,
-    from: string,
-    amount: number,
-    fileId: number,
-  ) {
-    const repeatedTransaction = await this.transactionsRepository.findOne({
-      where: {
-        to,
-        from,
-        amount,
-        file: {
-          id: fileId,
-        },
-      },
+    const savedFile = await this.saveTransactionFile({
+      filename: file.filename,
+      data: fileBuffer,
     });
 
-    return repeatedTransaction;
+    const rows = this.fileManagerService.parseCsv(fileBuffer.toString());
+
+    for (const row of rows) {
+      if (this.isTransaction(row)) {
+        await this.doTransaction(savedFile.id, {
+          from: row.from,
+          to: row.to,
+          amount: row.amount,
+        });
+      }
+    }
+
+    return this.transactionsSummaryService.getFileSummary(savedFile.id);
+  }
+
+  private isTransaction(
+    row: unknown,
+  ): row is { from: string; to: string; amount: string } {
+    return (
+      typeof row === 'object' &&
+      row !== null &&
+      'from' in row &&
+      'to' in row &&
+      'amount' in row &&
+      typeof (row as any).from === 'string' &&
+      typeof (row as any).to === 'string' &&
+      typeof (row as any).amount === 'string'
+    );
   }
 }
